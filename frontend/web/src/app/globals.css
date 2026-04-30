@@ -1,0 +1,264 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@300;400;500;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gold: #C9A227;
+  --gold-light: #f0c040;
+  --gold-dark: #a07818;
+  --bg-dark: #0A0A0A;
+  --bg-card: #111111;
+  --bg-border: #1f1f1f;
+  --bull: #0E7A2C;
+  --bear: #B0140C;
+  --text-primary: #f5f5f5;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: 'Cairo', 'Tajawal', sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* RTL Support for Arabic */
+[dir="rtl"] {
+  font-family: 'Cairo', 'Tajawal', sans-serif;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #111; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+
+/* Gold text gradient */
+.text-gold-gradient {
+  background: linear-gradient(135deg, #C9A227, #f0c040, #C9A227);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Card styles */
+.card-dark {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-border);
+  border-radius: 12px;
+}
+
+.card-gold-border {
+  background: var(--bg-card);
+  border: 1px solid var(--gold);
+  border-radius: 12px;
+  box-shadow: 0 0 20px rgba(201, 162, 39, 0.1);
+}
+
+/* Signal badges */
+.badge-buy {
+  background: rgba(14, 122, 44, 0.15);
+  color: #10a33a;
+  border: 1px solid rgba(14, 122, 44, 0.4);
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+.badge-sell {
+  background: rgba(176, 20, 12, 0.15);
+  color: #d01810;
+  border: 1px solid rgba(176, 20, 12, 0.4);
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+.badge-neutral {
+  background: rgba(107, 114, 128, 0.15);
+  color: #9ca3af;
+  border: 1px solid rgba(107, 114, 128, 0.4);
+  border-radius: 6px;
+  padding: 2px 10px;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+/* Confluence meter */
+.confluence-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #1f1f1f;
+  overflow: hidden;
+  position: relative;
+}
+
+.confluence-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  background: linear-gradient(90deg, #C9A227, #f0c040);
+}
+
+.confluence-fill.buy { background: linear-gradient(90deg, #0E7A2C, #10a33a); }
+.confluence-fill.sell { background: linear-gradient(90deg, #B0140C, #d01810); }
+
+/* Animated price ticker */
+.price-up { color: #10a33a; }
+.price-down { color: #d01810; }
+.price-unchanged { color: #9ca3af; }
+
+/* Lion logo glow */
+.lion-logo {
+  filter: drop-shadow(0 0 8px rgba(201, 162, 39, 0.6));
+  animation: lion-glow 3s ease-in-out infinite;
+}
+
+/* Table styles */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th {
+  background: #111;
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--bg-border);
+}
+.data-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(31, 31, 31, 0.5);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.data-table tr:hover td { background: rgba(201, 162, 39, 0.04); }
+
+/* Glowing button */
+.btn-gold {
+  background: linear-gradient(135deg, #C9A227, #f0c040);
+  color: #0A0A0A;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 0 20px rgba(201, 162, 39, 0.3);
+}
+.btn-gold:hover {
+  box-shadow: 0 0 30px rgba(201, 162, 39, 0.6);
+  transform: translateY(-1px);
+}
+
+.btn-outline-gold {
+  background: transparent;
+  color: var(--gold);
+  font-weight: 600;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-outline-gold:hover {
+  background: rgba(201, 162, 39, 0.1);
+}
+
+/* Number display */
+.number-mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Trade signal card */
+.signal-card {
+  background: linear-gradient(135deg, #111 0%, #141414 100%);
+  border: 1px solid var(--bg-border);
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.signal-card.buy { border-left: 3px solid var(--bull); }
+.signal-card.sell { border-left: 3px solid var(--bear); }
+.signal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 80px; height: 80px;
+  background: radial-gradient(circle, rgba(201, 162, 39, 0.05), transparent);
+}
+
+/* Pulse animation for live indicator */
+.live-dot {
+  width: 8px; height: 8px;
+  background: #10a33a;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* Whale tracker colors */
+.whale-small { color: #6b7280; }
+.whale-medium { color: #9ca3af; }
+.whale-large { color: #C9A227; }
+.whale-xlarge { color: #f0c040; }
+.whale-mega { color: #fde047; }
+.whale-king { color: #facc15; filter: drop-shadow(0 0 4px #facc15); }
+
+/* Form input */
+.input-dark {
+  background: #111111;
+  border: 1px solid #1f1f1f;
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #f5f5f5;
+  font-size: 0.875rem;
+  transition: border-color 0.2s;
+  outline: none;
+  width: 100%;
+}
+.input-dark:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(201, 162, 39, 0.15);
+}
+.input-dark::placeholder { color: #4b5563; }
+select.input-dark option { background: #111111; }
+
+/* Price up/down */
+.price-up { color: #10a33a; }
+.price-down { color: #ef4444; }
+
+/* Bull/Bear colors */
+.text-bull { color: #10a33a; }
+.text-bear { color: #ef4444; }
+.bg-bull { background-color: #0E7A2C; }
+.bg-bear { background-color: #B0140C; }
+
+/* Dark backgrounds */
+.bg-dark-900 { background-color: #0A0A0A; }
+.bg-dark-300 { background-color: #111111; }

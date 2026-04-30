@@ -1,0 +1,72 @@
+{
+  "app_name": "The Market Lion",
+  "tagline": "AI-Powered Trading System",
+  "nav": {
+    "dashboard": "Dashboard",
+    "backtesting": "Backtesting",
+    "pricing": "Pricing",
+    "login": "Sign In",
+    "register": "Register",
+    "logout": "Sign Out"
+  },
+  "signal": {
+    "buy": "BUY",
+    "sell": "SELL",
+    "neutral": "NEUTRAL",
+    "entry": "Entry",
+    "stop_loss": "Stop Loss",
+    "target_1": "Target 1",
+    "target_2": "Target 2",
+    "target_3": "Target 3",
+    "lot_size": "Lot Size",
+    "risk": "Risk",
+    "confluence": "Confluence",
+    "should_trade": "Execute Trade",
+    "top_factors": "Top Factors",
+    "rejection": "Rejection Reasons"
+  },
+  "timeframes": {
+    "M1": "1 Min", "M5": "5 Min", "M15": "15 Min", "M30": "30 Min",
+    "H1": "1 Hour", "H4": "4 Hours", "D1": "Daily", "W1": "Weekly", "MN": "Monthly"
+  },
+  "symbols": {
+    "XAUUSD": "Gold / USD",
+    "USOIL": "WTI Crude Oil",
+    "EURUSD": "EUR / USD",
+    "GBPUSD": "GBP / USD",
+    "USDJPY": "USD / JPY",
+    "AUDUSD": "AUD / USD",
+    "BTCUSD": "Bitcoin / USD"
+  },
+  "panels": {
+    "fundamental": "Fundamental Analysis",
+    "technical": "Technical Analysis",
+    "liquidity": "Liquidity & Structure",
+    "trade_plan": "Trade Plan",
+    "whale_tracker": "Whale Tracker",
+    "mtf": "MTF Confluence",
+    "performance": "Performance"
+  },
+  "modes": {
+    "manual": "Manual",
+    "semi_auto": "Semi-Auto",
+    "auto": "Full Auto"
+  },
+  "errors": {
+    "connection_failed": "Failed to connect to server",
+    "invalid_credentials": "Invalid email or password",
+    "session_expired": "Session expired, please log in again"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "demo_mode": "Demo Mode",
+    "live": "Live",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
+  }
+}
