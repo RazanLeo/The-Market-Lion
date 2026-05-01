@@ -2,7 +2,7 @@ FROM python:3.11-slim
 WORKDIR /app
 RUN addgroup --system lion && adduser --system --ingroup lion lion
 RUN pip install --no-cache-dir fastapi "uvicorn[standard]" "redis[asyncio]" numpy pydantic
-COPY services/vote-engine-service/ .
+COPY services/vote_engine_service/ .
 RUN chown -R lion:lion /app
 USER lion
 EXPOSE 8006

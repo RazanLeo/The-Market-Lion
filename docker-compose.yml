@@ -166,7 +166,7 @@ services:
   auth_service:
     build:
       context: ./backend
-      dockerfile: services/auth-service/Dockerfile
+      dockerfile: services/auth_service/Dockerfile
     ports:
       - "8001:8001"
     environment:
@@ -191,7 +191,7 @@ services:
   market_data_service:
     build:
       context: ./backend
-      dockerfile: services/market-data-service/Dockerfile
+      dockerfile: services/market_data_service/Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/0
       - TIMESCALE_URL=postgresql://${PG_USER:-lion}:${PG_PASSWORD:-lion_secret_2024}@timescaledb:5432/market_lion_ts
@@ -208,7 +208,7 @@ services:
   technical_service:
     build:
       context: ./backend
-      dockerfile: services/technical-analysis-service/Dockerfile
+      dockerfile: services/technical_analysis_service/Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/0
       - KAFKA_BOOTSTRAP=kafka:9092
@@ -220,7 +220,7 @@ services:
   fundamental_service:
     build:
       context: ./backend
-      dockerfile: services/fundamental-data-service/Dockerfile
+      dockerfile: services/fundamental_data_service/Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/0
       - MONGO_URL=mongodb://${MONGO_USER:-lion}:${MONGO_PASSWORD:-lion_secret_2024}@mongodb:27017/market_lion_news
@@ -236,7 +236,7 @@ services:
   vote_engine_service:
     build:
       context: ./backend
-      dockerfile: services/vote-engine-service/Dockerfile
+      dockerfile: services/vote_engine_service/Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/0
       - KAFKA_BOOTSTRAP=kafka:9092
@@ -248,7 +248,7 @@ services:
   risk_manager_service:
     build:
       context: ./backend
-      dockerfile: services/risk-manager-service/Dockerfile
+      dockerfile: services/risk_manager_service/Dockerfile
     ports:
       - "8013:8013"
     environment:
@@ -268,7 +268,7 @@ services:
   notification_service:
     build:
       context: ./backend
-      dockerfile: services/notification-service/Dockerfile
+      dockerfile: services/notification_service/Dockerfile
     ports:
       - "8014:8014"
     environment:
@@ -288,7 +288,7 @@ services:
   order_execution_service:
     build:
       context: ./backend
-      dockerfile: services/order-execution-service/Dockerfile
+      dockerfile: services/order_execution_service/Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/0
       - POSTGRES_URL=postgresql://${PG_USER:-lion}:${PG_PASSWORD:-lion_secret_2024}@postgres:5432/market_lion
@@ -308,7 +308,7 @@ services:
   nlp_engine_service:
     build:
       context: ./backend
-      dockerfile: services/nlp-engine-service/Dockerfile
+      dockerfile: services/nlp_engine_service/Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/0
       - MONGO_URL=mongodb://${MONGO_USER:-lion}:${MONGO_PASSWORD:-lion_secret_2024}@mongodb:27017/market_lion_news
@@ -325,7 +325,7 @@ services:
   backtesting_service:
     build:
       context: ./backend
-      dockerfile: services/backtesting-service/Dockerfile
+      dockerfile: services/backtesting_service/Dockerfile
     ports:
       - "8002:8002"
     environment:
@@ -340,7 +340,7 @@ services:
   # ─── Phase-2 Services ─────────────────────────────────────────────────────
   news_ingestion_service:
     build:
-      context: ./backend/services/news-ingestion-service
+      context: ./backend/services/news_ingestion_service
       dockerfile: Dockerfile
     environment:
       - MONGO_URL=mongodb://${MONGO_USER:-lion}:${MONGO_PASSWORD:-lion_secret_2024}@mongodb:27017/market_lion_news
@@ -355,7 +355,7 @@ services:
 
   ai_ml_service:
     build:
-      context: ./backend/services/ai-ml-service
+      context: ./backend/services/ai_ml_service
       dockerfile: Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/3
@@ -376,7 +376,7 @@ services:
 
   patterns_service:
     build:
-      context: ./backend/services/patterns-service
+      context: ./backend/services/patterns_service
       dockerfile: Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/4
@@ -394,7 +394,7 @@ services:
 
   price_action_service:
     build:
-      context: ./backend/services/price-action-service
+      context: ./backend/services/price_action_service
       dockerfile: Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/5
@@ -412,7 +412,7 @@ services:
 
   user_service:
     build:
-      context: ./backend/services/user-service
+      context: ./backend/services/user_service
       dockerfile: Dockerfile
     environment:
       - DATABASE_URL=postgresql://${PG_USER:-lion}:${PG_PASSWORD:-lion_secret_2024}@postgres:5432/market_lion
@@ -431,7 +431,7 @@ services:
 
   whale_tracker_service:
     build:
-      context: ./backend/services/whale-tracker-service
+      context: ./backend/services/whale_tracker_service
       dockerfile: Dockerfile
     environment:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-lion_redis_2024}@redis:6379/6
