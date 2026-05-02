@@ -1,0 +1,85 @@
+
+===========================================================
+  أسد السوق — أوامر النشر على السيرفر
+  الخطوة 1 من 3: أضف مفتاح SSH (مرة واحدة فقط)
+===========================================================
+
+افتح DigitalOcean Web Console لسيرفر 161.35.192.36
+ثم انسخ هذا السطر بالكامل والصقه:
+
+echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJm26fL4V8fVfUcTaJHpdIJqHmotROI9UuyFuyuE7C4p leo@market-lion-deploy" >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && echo "KEY ADDED OK"
+
+===========================================================
+  الخطوة 2 من 3: انشر المنصة الجديدة
+===========================================================
+
+بعد إضافة المفتاح، افتح Terminal على جهازك Mac وشغل:
+
+ssh -i ~/.ssh/market_lion_vps root@161.35.192.36
+
+ثم داخل السيرفر:
+
+# حذف المشروع القديم وتثبيت الجديد
+docker compose -f /root/The-Market-Lion/market-lion/docker-compose.yml down 2>/dev/null || true
+
+cd /root
+git clone https://github.com/RazanLeo/The-Market-Lion.git market-lion-v2 || (cd market-lion-v2 && git pull origin main)
+cd /root/market-lion-v2
+
+# إنشاء ملف الإعدادات
+cat > .env << 'ENVEOF'
+POSTGRES_USER=lion
+POSTGRES_DB=marketlion
+PG_PASSWORD=lion_secret_2024
+DATABASE_URL=postgresql+asyncpg://lion:lion_secret_2024@postgres:5432/marketlion
+REDIS_PASSWORD=lion_redis_2024
+REDIS_URL=redis://:lion_redis_2024@redis:6379/0
+JWT_SECRET=marketlion2024secretkey
+ENCRYPTION_KEY=marketlion2024encryptionkey3200
+CAPITAL_COM_API_KEY=
+CAPITAL_COM_IDENTIFIER=
+CAPITAL_COM_PASSWORD=
+CAPITAL_COM_DEMO=true
+ALPHA_VANTAGE_KEY=demo
+NEWS_API_KEY=
+OPENAI_API_KEY=
+ENVIRONMENT=production
+ALLOWED_ORIGINS=http://161.35.192.36:3000,http://161.35.192.36
+NEXT_PUBLIC_API_URL=http://161.35.192.36:8000/api
+NEXT_PUBLIC_WS_URL=ws://161.35.192.36:8000
+ENVEOF
+
+# تشغيل المنصة
+docker compose up -d --build
+
+# فتح المنافذ
+ufw allow 80 && ufw allow 443 && ufw allow 3000 && ufw allow 8000
+
+===========================================================
+  الخطوة 3 من 3: تحقق من التشغيل
+===========================================================
+
+docker compose ps
+curl http://localhost:8000/health
+
+# الموقع الجديد:
+# http://161.35.192.36       → الصفحة الرئيسية (nginx)
+# http://161.35.192.36:3000  → الواجهة مباشرة
+# http://161.35.192.36:8000  → API
+# http://161.35.192.36:8000/docs → Swagger
+
+===========================================================
+  API Keys التي تحتاجها (اختيارية للبدء)
+===========================================================
+
+لتفعيل التحليل الأساسي الحقيقي:
+- Alpha Vantage (مجاني): https://alphavantage.co/support/#api-key
+- NewsAPI (مجاني): https://newsapi.org/register
+
+لتفعيل ربط Capital.com:
+1. أنشئ حساب تجريبي Demo: https://capital.com
+2. من الإعدادات → API → أنشئ مفتاح API
+3. ضع المفاتيح في .env
+
+لتفعيل الدردشة الذكية (اختياري):
+- OpenAI API Key: https://platform.openai.com/api-keys
