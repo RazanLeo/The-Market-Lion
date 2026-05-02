@@ -1,5 +1,7 @@
-"""Technical analysis service using the `ta` library."""
+"""Full 74-school technical analysis engine with vote system."""
 import logging
+import sys
+import os
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -8,42 +10,55 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-try:
-    import ta
-    TA_AVAILABLE = True
-except ImportError:
-    TA_AVAILABLE = False
-    logger.warning("ta library not available — technical analysis will use stubs")
+# Add service path for relative imports
+_SVC_DIR = os.path.join(os.path.dirname(__file__), "technical_analysis_service")
+if _SVC_DIR not in sys.path:
+    sys.path.insert(0, _SVC_DIR)
+
+_VOTE_DIR = os.path.join(os.path.dirname(__file__), "vote_engine_service")
+if _VOTE_DIR not in sys.path:
+    sys.path.insert(0, _VOTE_DIR)
 
 
 class TechnicalAnalysisService:
-    """
-    Performs multi-school technical analysis on OHLCV candle data.
-    All heavy computation is synchronous (CPU-bound); call via asyncio executor
-    if needed from async context.
-    """
+    """Run all 74 schools + vote engine on OHLCV candle data."""
 
     def analyze(self, symbol: str, timeframe: str, candles: list) -> dict:
-        """
-        Run full analysis on candle data.
-
-        candles: list of dicts with keys: open, high, low, close, volume, time
-        Returns a dict matching the API response schema.
-        """
         if not candles or len(candles) < 20:
             return self._insufficient_data(symbol, timeframe)
 
         df = self._to_dataframe(candles)
         price = float(df["close"].iloc[-1])
 
-        indicators = self._calculate_indicators(df)
-        schools = self._analyze_schools(df, indicators, price)
-        confluence_score = self._calc_confluence(schools)
-        signal = self._overall_signal(confluence_score, schools)
-        trend = self._detect_trend(indicators)
+        # Run all 74 schools
+        school_results = self._run_all_schools(df)
+
+        # Run vote engine
+        vote = self._run_vote_engine(school_results)
+
+        # Map signal
+        signal = vote["side"].lower() if vote["side"] in ("BUY", "SELL") else "wait"
+
+        # Calculate indicators for display
+        indicators = self._quick_indicators(df)
+
+        # Levels
         entry, sl, tp1, tp2, tp3 = self._calc_levels(df, price, signal, indicators)
-        supports, resistances = self._calc_sr_levels(df)
+        supports, resistances = self._calc_sr(df)
+        trend = self._detect_trend(indicators)
         killzone = self._get_killzone()
+
+        # Build school breakdown for frontend
+        schools_display = {}
+        for item in vote.get("school_breakdown", []):
+            key = item["school"].lower().replace(" ", "_").replace("%", "pct").replace("+", "plus").replace("/", "_")
+            schools_display[key] = {
+                "name": item["school"],
+                "signal": item["vote"].lower() if item["vote"] in ("BUY", "SELL") else "neutral",
+                "confidence": round(item["confidence"] * 100),
+                "strength": round(item["strength"] * 100),
+                "weight": round(item["weight"] * 100, 2),
+            }
 
         return {
             "symbol": symbol,
@@ -51,21 +66,28 @@ class TechnicalAnalysisService:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "price": round(price, 5),
             "trend": trend,
-            "confluence_score": round(confluence_score, 4),
+            "confluence_score": round(vote["confluence_score"], 1),
             "signal": signal,
+            "should_trade": vote["should_trade"],
+            "rejection_reasons": vote["rejection_reasons"],
             "entry": entry,
             "stop_loss": sl,
             "take_profit_1": tp1,
             "take_profit_2": tp2,
             "take_profit_3": tp3,
+            "buy_votes": vote["buy_votes"],
+            "sell_votes": vote["sell_votes"],
+            "neutral_votes": vote["neutral_votes"],
+            "total_schools": vote["total_votes"],
+            "top_factors": vote["top_factors"],
             "indicators": indicators,
-            "schools": schools,
+            "schools": schools_display,
             "support_levels": supports,
             "resistance_levels": resistances,
             "killzone": killzone,
         }
 
-    # ── DataFrame prep ────────────────────────────────────────────────────────
+    # ── Data prep ─────────────────────────────────────────────────────────────
 
     @staticmethod
     def _to_dataframe(candles: list) -> pd.DataFrame:
@@ -73,590 +95,272 @@ class TechnicalAnalysisService:
         for col in ("open", "high", "low", "close", "volume"):
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
-        df = df.dropna(subset=["close"])
-        df = df.reset_index(drop=True)
+        if "volume" not in df.columns:
+            df["volume"] = 0.0
+        df = df.dropna(subset=["close"]).reset_index(drop=True)
         return df
 
-    # ── Indicator calculation ─────────────────────────────────────────────────
+    # ── Run all 74 schools ────────────────────────────────────────────────────
 
-    def _calculate_indicators(self, df: pd.DataFrame) -> dict:
+    def _run_all_schools(self, df: pd.DataFrame) -> list:
+        try:
+            from indicators import analyze_all_schools
+            return analyze_all_schools(df)
+        except Exception as e:
+            logger.warning(f"Full school analysis failed, using fallback: {e}")
+            return self._fallback_schools(df)
+
+    def _fallback_schools(self, df: pd.DataFrame) -> list:
+        """Minimal fallback using direct ta library if import fails."""
+        results = []
+        try:
+            from indicators import (
+                analyze_moving_averages, analyze_rsi, analyze_macd,
+                analyze_stochastic, analyze_bollinger_bands, analyze_adx,
+                analyze_ichimoku, analyze_fibonacci, analyze_price_action,
+                analyze_smc,
+            )
+            for fn in (
+                analyze_moving_averages, analyze_rsi, analyze_macd,
+                analyze_stochastic, analyze_bollinger_bands, analyze_adx,
+                analyze_ichimoku, analyze_fibonacci, analyze_price_action,
+                analyze_smc,
+            ):
+                try:
+                    results.append(fn(df))
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.error(f"Even fallback schools failed: {e}")
+        return results
+
+    # ── Vote engine ───────────────────────────────────────────────────────────
+
+    def _run_vote_engine(self, school_results: list) -> dict:
+        try:
+            from engine import run_vote_engine
+            hour = datetime.now(timezone.utc).hour
+            killzone = (2 <= hour < 5) or (7 <= hour < 10) or (12 <= hour < 15)
+            result = run_vote_engine(
+                school_results=school_results,
+                fundamental_score=50.0,
+                fundamental_direction="NEUTRAL",
+                mtf_aligned=True,
+                killzone_active=killzone,
+                news_shield=False,
+                drawdown_pct=0.0,
+                daily_loss_pct=0.0,
+                consecutive_losses=0,
+            )
+            return {
+                "side": result.side,
+                "confluence_score": result.confluence_score,
+                "buy_votes": result.buy_votes,
+                "sell_votes": result.sell_votes,
+                "neutral_votes": result.neutral_votes,
+                "total_votes": result.total_votes,
+                "should_trade": result.should_trade,
+                "rejection_reasons": result.rejection_reasons,
+                "school_breakdown": result.school_breakdown,
+                "top_factors": result.top_factors,
+            }
+        except Exception as e:
+            logger.warning(f"Vote engine failed: {e}")
+            return self._simple_vote(school_results)
+
+    def _simple_vote(self, school_results: list) -> dict:
+        """Simple majority vote fallback."""
+        from dataclasses import asdict
+        buy = sell = neutral = 0
+        breakdown = []
+        for r in school_results:
+            v = getattr(r, "vote", None)
+            vote_val = v.value if hasattr(v, "value") else str(v)
+            if vote_val == "BUY":
+                buy += 1
+            elif vote_val == "SELL":
+                sell += 1
+            else:
+                neutral += 1
+            breakdown.append({
+                "school": r.name,
+                "vote": vote_val,
+                "strength": round(getattr(r, "strength", 0.5), 3),
+                "confidence": round(getattr(r, "confidence", 0.5), 3),
+                "weight": 0.014,
+            })
+        total = buy + sell + neutral or 1
+        score = (buy - sell) / total * 100
+        side = "BUY" if score > 15 else ("SELL" if score < -15 else "NEUTRAL")
+        return {
+            "side": side,
+            "confluence_score": abs(score),
+            "buy_votes": buy,
+            "sell_votes": sell,
+            "neutral_votes": neutral,
+            "total_votes": total,
+            "should_trade": abs(score) >= 60,
+            "rejection_reasons": [],
+            "school_breakdown": breakdown,
+            "top_factors": sorted(breakdown, key=lambda x: x["strength"], reverse=True)[:5],
+        }
+
+    # ── Quick indicators for display ──────────────────────────────────────────
+
+    def _quick_indicators(self, df: pd.DataFrame) -> dict:
         close = df["close"]
         high = df["high"]
         low = df["low"]
-        volume = df.get("volume", pd.Series([0] * len(df)))
-
-        latest_close = float(close.iloc[-1])
-
-        result: dict = {}
+        volume = df.get("volume", pd.Series([0.0] * len(df)))
+        price = float(close.iloc[-1])
+        result = {}
 
         # RSI
         try:
-            rsi_series = ta.momentum.RSIIndicator(close, window=14).rsi()
-            rsi_val = float(rsi_series.iloc[-1])
+            delta = close.diff()
+            gain = delta.clip(lower=0).rolling(14).mean()
+            loss = (-delta.clip(upper=0)).rolling(14).mean()
+            rs = gain / loss.replace(0, np.nan)
+            rsi_val = float(100 - 100 / (1 + rs.iloc[-1]))
             result["rsi"] = {
                 "value": round(rsi_val, 2),
-                "signal": "oversold" if rsi_val < 30 else "overbought" if rsi_val > 70 else "neutral",
+                "signal": "oversold" if rsi_val < 30 else ("overbought" if rsi_val > 70 else "neutral"),
             }
         except Exception:
             result["rsi"] = {"value": 50.0, "signal": "neutral"}
 
         # MACD
         try:
-            macd_ind = ta.trend.MACD(close)
-            macd_val = float(macd_ind.macd().iloc[-1])
-            signal_val = float(macd_ind.macd_signal().iloc[-1])
-            hist = float(macd_ind.macd_diff().iloc[-1])
+            ema12 = close.ewm(span=12).mean()
+            ema26 = close.ewm(span=26).mean()
+            macd_line = ema12 - ema26
+            signal_line = macd_line.ewm(span=9).mean()
+            histogram = macd_line - signal_line
             result["macd"] = {
-                "value": round(macd_val, 5),
-                "signal_line": round(signal_val, 5),
-                "histogram": round(hist, 5),
-                "signal": "buy" if hist > 0 else "sell",
+                "macd": round(float(macd_line.iloc[-1]), 5),
+                "signal": round(float(signal_line.iloc[-1]), 5),
+                "histogram": round(float(histogram.iloc[-1]), 5),
+                "signal_type": "buy" if float(histogram.iloc[-1]) > 0 else "sell",
             }
         except Exception:
-            result["macd"] = {"value": 0.0, "signal_line": 0.0, "histogram": 0.0, "signal": "neutral"}
+            result["macd"] = {"signal_type": "neutral"}
 
-        # EMAs
+        # EMA 20/50/200
         for period in (20, 50, 200):
             try:
-                ema = float(ta.trend.EMAIndicator(close, window=period).ema_indicator().iloc[-1])
+                ema_val = float(close.ewm(span=period).mean().iloc[-1])
                 result[f"ema_{period}"] = {
-                    "value": round(ema, 5),
-                    "signal": "buy" if latest_close > ema else "sell",
+                    "value": round(ema_val, 5),
+                    "signal": "buy" if price > ema_val else "sell",
                 }
             except Exception:
-                result[f"ema_{period}"] = {"value": latest_close, "signal": "neutral"}
-
-        # Bollinger Bands
-        try:
-            bb = ta.volatility.BollingerBands(close, window=20, window_dev=2)
-            upper = float(bb.bollinger_hband().iloc[-1])
-            middle = float(bb.bollinger_mavg().iloc[-1])
-            lower = float(bb.bollinger_lband().iloc[-1])
-            if latest_close > upper:
-                bb_signal = "sell"
-            elif latest_close < lower:
-                bb_signal = "buy"
-            else:
-                bb_signal = "neutral"
-            result["bollinger"] = {
-                "upper": round(upper, 5),
-                "middle": round(middle, 5),
-                "lower": round(lower, 5),
-                "signal": bb_signal,
-            }
-        except Exception:
-            result["bollinger"] = {"upper": 0.0, "middle": 0.0, "lower": 0.0, "signal": "neutral"}
+                result[f"ema_{period}"] = {"value": 0.0, "signal": "neutral"}
 
         # ATR
         try:
-            atr_val = float(ta.volatility.AverageTrueRange(high, low, close, window=14).average_true_range().iloc[-1])
+            tr = pd.concat([
+                high - low,
+                (high - close.shift()).abs(),
+                (low - close.shift()).abs(),
+            ], axis=1).max(axis=1)
+            atr_val = float(tr.rolling(14).mean().iloc[-1])
             result["atr"] = {"value": round(atr_val, 5)}
         except Exception:
-            result["atr"] = {"value": 0.0}
+            result["atr"] = {"value": price * 0.005}
+
+        # Bollinger Bands
+        try:
+            sma20 = close.rolling(20).mean()
+            std20 = close.rolling(20).std()
+            upper = sma20 + 2 * std20
+            lower = sma20 - 2 * std20
+            mid = float(sma20.iloc[-1])
+            up = float(upper.iloc[-1])
+            lo = float(lower.iloc[-1])
+            position = (price - lo) / (up - lo) if up != lo else 0.5
+            result["bollinger"] = {
+                "upper": round(up, 5),
+                "middle": round(mid, 5),
+                "lower": round(lo, 5),
+                "position": round(position, 3),
+                "signal": "oversold" if position < 0.2 else ("overbought" if position > 0.8 else "neutral"),
+            }
+        except Exception:
+            result["bollinger"] = {"signal": "neutral"}
 
         # Stochastic
         try:
-            stoch = ta.momentum.StochasticOscillator(high, low, close, window=14, smooth_window=3)
-            k = float(stoch.stoch().iloc[-1])
-            d = float(stoch.stoch_signal().iloc[-1])
-            stoch_signal = "oversold" if k < 20 else "overbought" if k > 80 else "neutral"
-            result["stochastic"] = {"k": round(k, 2), "d": round(d, 2), "signal": stoch_signal}
+            low14 = low.rolling(14).min()
+            high14 = high.rolling(14).max()
+            k = 100 * (close - low14) / (high14 - low14).replace(0, np.nan)
+            d = k.rolling(3).mean()
+            k_val = float(k.iloc[-1])
+            d_val = float(d.iloc[-1])
+            result["stochastic"] = {
+                "k": round(k_val, 2),
+                "d": round(d_val, 2),
+                "signal": "oversold" if k_val < 20 else ("overbought" if k_val > 80 else "neutral"),
+            }
         except Exception:
-            result["stochastic"] = {"k": 50.0, "d": 50.0, "signal": "neutral"}
+            result["stochastic"] = {"signal": "neutral"}
 
         # ADX
         try:
-            adx_val = float(ta.trend.ADXIndicator(high, low, close, window=14).adx().iloc[-1])
+            plus_dm = (high.diff()).clip(lower=0)
+            minus_dm = (-low.diff()).clip(lower=0)
+            tr = pd.concat([high - low, (high - close.shift()).abs(), (low - close.shift()).abs()], axis=1).max(axis=1)
+            atr14 = tr.rolling(14).mean()
+            plus_di = 100 * (plus_dm.rolling(14).mean() / atr14.replace(0, np.nan))
+            minus_di = 100 * (minus_dm.rolling(14).mean() / atr14.replace(0, np.nan))
+            dx = 100 * (plus_di - minus_di).abs() / (plus_di + minus_di).replace(0, np.nan)
+            adx_val = float(dx.rolling(14).mean().iloc[-1])
             result["adx"] = {
                 "value": round(adx_val, 2),
-                "signal": "trending" if adx_val > 25 else "ranging",
+                "signal": "strong_trend" if adx_val > 25 else "weak_trend",
             }
         except Exception:
-            result["adx"] = {"value": 25.0, "signal": "ranging"}
-
-        # Volume
-        try:
-            vol_current = float(volume.iloc[-1])
-            vol_avg = float(volume.tail(20).mean())
-            vol_signal = "above_average" if vol_current > vol_avg * 1.2 else (
-                "below_average" if vol_current < vol_avg * 0.8 else "average"
-            )
-            result["volume"] = {
-                "current": int(vol_current),
-                "avg": int(vol_avg),
-                "signal": vol_signal,
-            }
-        except Exception:
-            result["volume"] = {"current": 0, "avg": 0, "signal": "average"}
+            result["adx"] = {"value": 0.0, "signal": "neutral"}
 
         return result
 
-    # ── Schools of analysis ───────────────────────────────────────────────────
-
-    def _analyze_schools(self, df: pd.DataFrame, indicators: dict, price: float) -> dict:
-        schools: dict = {}
-        close = df["close"]
-        high = df["high"]
-        low = df["low"]
-
-        # 1. Price Action
-        schools["price_action"] = self._school_price_action(df)
-
-        # 2. Supply & Demand
-        schools["supply_demand"] = self._school_supply_demand(df, price)
-
-        # 3. Smart Money Concepts
-        schools["smart_money"] = self._school_smart_money(df, price)
-
-        # 4. Wyckoff
-        schools["wyckoff"] = self._school_wyckoff(df)
-
-        # 5. Elliott Wave (simplified)
-        schools["elliott_wave"] = self._school_elliott_wave(df)
-
-        # 6. Fibonacci
-        schools["fibonacci"] = self._school_fibonacci(df, price)
-
-        # 7. Ichimoku
-        schools["ichimoku"] = self._school_ichimoku(df, price)
-
-        # 8. Volume Profile
-        schools["volume_profile"] = self._school_volume_profile(df, price)
-
-        # 9. Candlestick Patterns
-        schools["candlestick_patterns"] = self._school_candlestick_patterns(df)
-
-        # 10. Trend Following
-        schools["trend_following"] = self._school_trend_following(indicators, price)
-
-        return schools
-
-    def _school_price_action(self, df: pd.DataFrame) -> dict:
-        """Detect basic candlestick reversal/continuation patterns."""
-        if len(df) < 3:
-            return {"signal": "neutral", "confidence": 0.5, "reason": "Insufficient data"}
-
-        c0 = df.iloc[-1]  # latest
-        c1 = df.iloc[-2]  # previous
-
-        body0 = abs(c0["close"] - c0["open"])
-        body1 = abs(c1["close"] - c1["open"])
-        range0 = c0["high"] - c0["low"]
-
-        # Bullish engulfing
-        if (
-            c1["close"] < c1["open"]
-            and c0["close"] > c0["open"]
-            and c0["open"] <= c1["close"]
-            and c0["close"] >= c1["open"]
-        ):
-            return {"signal": "buy", "confidence": 0.75, "reason": "Bullish engulfing pattern"}
-
-        # Bearish engulfing
-        if (
-            c1["close"] > c1["open"]
-            and c0["close"] < c0["open"]
-            and c0["open"] >= c1["close"]
-            and c0["close"] <= c1["open"]
-        ):
-            return {"signal": "sell", "confidence": 0.75, "reason": "Bearish engulfing pattern"}
-
-        # Hammer
-        lower_wick = c0["open"] - c0["low"] if c0["close"] > c0["open"] else c0["close"] - c0["low"]
-        upper_wick = c0["high"] - max(c0["open"], c0["close"])
-        if lower_wick > 2 * body0 and upper_wick < body0 and range0 > 0:
-            return {"signal": "buy", "confidence": 0.65, "reason": "Hammer pattern"}
-
-        # Shooting star
-        if upper_wick > 2 * body0 and lower_wick < body0 and range0 > 0:
-            return {"signal": "sell", "confidence": 0.65, "reason": "Shooting star pattern"}
-
-        # Momentum candle
-        if c0["close"] > c0["open"] and body0 > 0.6 * range0:
-            return {"signal": "buy", "confidence": 0.60, "reason": "Strong bullish momentum candle"}
-        if c0["close"] < c0["open"] and body0 > 0.6 * range0:
-            return {"signal": "sell", "confidence": 0.60, "reason": "Strong bearish momentum candle"}
-
-        return {"signal": "neutral", "confidence": 0.50, "reason": "No clear price action pattern"}
-
-    def _school_supply_demand(self, df: pd.DataFrame, price: float) -> dict:
-        """Identify supply/demand zones using swing highs/lows."""
-        if len(df) < 30:
-            return {"signal": "neutral", "confidence": 0.5, "reason": "Insufficient data"}
-
-        recent = df.tail(50)
-        recent_lows = recent["low"].nsmallest(5)
-        recent_highs = recent["high"].nlargest(5)
-
-        demand_zone_top = float(recent_lows.max())
-        demand_zone_bottom = float(recent_lows.min())
-        supply_zone_bottom = float(recent_highs.min())
-        supply_zone_top = float(recent_highs.max())
-
-        tolerance = (df["high"].tail(20).mean() - df["low"].tail(20).mean()) * 0.1
-
-        if demand_zone_bottom <= price <= demand_zone_top + tolerance:
-            return {"signal": "buy", "confidence": 0.78, "reason": f"Price in demand zone ({demand_zone_bottom:.2f}–{demand_zone_top:.2f})"}
-        if supply_zone_bottom - tolerance <= price <= supply_zone_top:
-            return {"signal": "sell", "confidence": 0.78, "reason": f"Price in supply zone ({supply_zone_bottom:.2f}–{supply_zone_top:.2f})"}
-
-        return {"signal": "neutral", "confidence": 0.50, "reason": "Price between supply and demand zones"}
-
-    def _school_smart_money(self, df: pd.DataFrame, price: float) -> dict:
-        """SMC: order blocks + break of structure."""
-        if len(df) < 20:
-            return {"signal": "neutral", "confidence": 0.5, "reason": "Insufficient data"}
-
-        # Simplified: look for last bearish candle before a bullish impulse (bullish OB)
-        # or last bullish candle before a bearish impulse (bearish OB)
-        closes = df["close"].values
-        opens = df["open"].values
-
-        # Look for BOS (break of structure)
-        recent_closes = closes[-20:]
-        highest = float(np.max(recent_closes[-10:]))
-        lowest = float(np.min(recent_closes[-10:]))
-        prior_highest = float(np.max(recent_closes[:10]))
-        prior_lowest = float(np.min(recent_closes[:10]))
-
-        if highest > prior_highest:
-            # Bullish BOS
-            # Identify potential order block (last bearish candle before breakout)
-            for i in range(len(df) - 5, max(len(df) - 20, 0), -1):
-                if df["close"].iloc[i] < df["open"].iloc[i]:  # bearish candle
-                    ob_low = float(df["low"].iloc[i])
-                    ob_high = float(df["high"].iloc[i])
-                    if ob_low <= price <= ob_high:
-                        return {"signal": "buy", "confidence": 0.72, "reason": f"Bullish order block support ({ob_low:.2f}–{ob_high:.2f})"}
-                    break
-            return {"signal": "buy", "confidence": 0.65, "reason": "Bullish break of structure"}
-
-        if lowest < prior_lowest:
-            return {"signal": "sell", "confidence": 0.65, "reason": "Bearish break of structure"}
-
-        return {"signal": "neutral", "confidence": 0.50, "reason": "No clear structure break"}
-
-    def _school_wyckoff(self, df: pd.DataFrame) -> dict:
-        """Simplified Wyckoff phase detection."""
-        if len(df) < 40:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Insufficient data"}
-
-        close = df["close"]
-        volume = df.get("volume", pd.Series([1] * len(df)))
-
-        price_std = float(close.tail(20).std())
-        price_range = float(close.tail(20).max() - close.tail(20).min())
-        avg_range = float(close.std())
-
-        # Tight range + declining volume → accumulation
-        vol_trend = float(volume.tail(10).mean()) - float(volume.tail(20).head(10).mean())
-
-        if price_range < avg_range * 0.5 and vol_trend < 0:
-            return {"signal": "buy", "confidence": 0.60, "reason": "Wyckoff accumulation phase detected"}
-        if price_range < avg_range * 0.5 and vol_trend > 0:
-            return {"signal": "sell", "confidence": 0.55, "reason": "Wyckoff distribution phase detected"}
-
-        # Trend
-        slope = float(close.tail(20).iloc[-1] - close.tail(20).iloc[0])
-        if slope > price_std:
-            return {"signal": "buy", "confidence": 0.60, "reason": "Wyckoff markup phase (uptrend)"}
-        if slope < -price_std:
-            return {"signal": "sell", "confidence": 0.60, "reason": "Wyckoff markdown phase (downtrend)"}
-
-        return {"signal": "neutral", "confidence": 0.50, "reason": "Wyckoff: neutral / re-accumulation"}
-
-    def _school_elliott_wave(self, df: pd.DataFrame) -> dict:
-        """Very simplified Elliott Wave — pivot counting."""
-        if len(df) < 30:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Insufficient data"}
-
-        close = df["close"].values
-        pivots = []
-        for i in range(1, len(close) - 1):
-            if close[i] > close[i - 1] and close[i] > close[i + 1]:
-                pivots.append(("high", i, close[i]))
-            elif close[i] < close[i - 1] and close[i] < close[i + 1]:
-                pivots.append(("low", i, close[i]))
-
-        if len(pivots) < 5:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "No clear wave structure"}
-
-        last_pivots = pivots[-5:]
-        types = [p[0] for p in last_pivots]
-
-        # Pattern: low-high-low-high-low → potential wave 5 / C up
-        if types == ["low", "high", "low", "high", "low"]:
-            return {"signal": "buy", "confidence": 0.65, "reason": "Elliott Wave: potential wave 3 or 5 up"}
-        if types == ["high", "low", "high", "low", "high"]:
-            return {"signal": "sell", "confidence": 0.65, "reason": "Elliott Wave: potential corrective wave down"}
-
-        # If last pivot is a low and prior was a high → impulse may resume
-        if last_pivots[-1][0] == "low" and last_pivots[-2][0] == "high":
-            return {"signal": "buy", "confidence": 0.60, "reason": "Elliott Wave: correction complete, impulse likely"}
-
-        return {"signal": "neutral", "confidence": 0.50, "reason": "Elliott Wave: wave count unclear"}
-
-    def _school_fibonacci(self, df: pd.DataFrame, price: float) -> dict:
-        """Fibonacci retracement levels."""
-        if len(df) < 20:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Insufficient data"}
-
-        recent = df.tail(60)
-        swing_high = float(recent["high"].max())
-        swing_low = float(recent["low"].min())
-        diff = swing_high - swing_low
-
-        if diff == 0:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "No price range"}
-
-        fibs = {
-            "0.236": swing_high - 0.236 * diff,
-            "0.382": swing_high - 0.382 * diff,
-            "0.500": swing_high - 0.500 * diff,
-            "0.618": swing_high - 0.618 * diff,
-            "0.786": swing_high - 0.786 * diff,
-        }
-
-        tolerance = diff * 0.02  # 2% tolerance
-        for level_name, level_price in fibs.items():
-            if abs(price - level_price) <= tolerance:
-                # Determine direction by where price came from
-                mid = (swing_high + swing_low) / 2
-                direction = "buy" if price < mid else "sell"
-                confidence = 0.80 if level_name == "0.618" else 0.70
-                return {
-                    "signal": direction,
-                    "confidence": confidence,
-                    "reason": f"Price at Fibonacci {level_name} retracement ({level_price:.2f})",
-                }
-
-        return {"signal": "neutral", "confidence": 0.50, "reason": "Price not at key Fibonacci level"}
-
-    def _school_ichimoku(self, df: pd.DataFrame, price: float) -> dict:
-        """Ichimoku cloud analysis."""
-        if len(df) < 52:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Insufficient data for Ichimoku"}
-
-        high = df["high"]
-        low = df["low"]
-        close = df["close"]
-
-        def donchian(series_h, series_l, window):
-            return (series_h.rolling(window).max() + series_l.rolling(window).min()) / 2
-
-        tenkan = donchian(high, low, 9)
-        kijun = donchian(high, low, 26)
-        senkou_a = ((tenkan + kijun) / 2).shift(26)
-        senkou_b = donchian(high, low, 52).shift(26)
-
-        t = float(tenkan.iloc[-1])
-        k = float(kijun.iloc[-1])
-        sa = float(senkou_a.iloc[-1]) if not pd.isna(senkou_a.iloc[-1]) else price
-        sb = float(senkou_b.iloc[-1]) if not pd.isna(senkou_b.iloc[-1]) else price
-
-        cloud_top = max(sa, sb)
-        cloud_bottom = min(sa, sb)
-
-        if price > cloud_top and t > k:
-            return {"signal": "buy", "confidence": 0.72, "reason": "Price above Kumo cloud, Tenkan > Kijun (bullish)"}
-        if price < cloud_bottom and t < k:
-            return {"signal": "sell", "confidence": 0.72, "reason": "Price below Kumo cloud, Tenkan < Kijun (bearish)"}
-        if cloud_bottom <= price <= cloud_top:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Price inside Kumo cloud (indecision)"}
-
-        return {"signal": "neutral", "confidence": 0.50, "reason": "Ichimoku: mixed signals"}
-
-    def _school_volume_profile(self, df: pd.DataFrame, price: float) -> dict:
-        """Simplified volume profile — identify high volume nodes."""
-        if "volume" not in df.columns or len(df) < 20:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Volume data unavailable"}
-
-        try:
-            n_bins = 20
-            price_min = float(df["low"].min())
-            price_max = float(df["high"].max())
-            bins = np.linspace(price_min, price_max, n_bins + 1)
-            volume_by_bin = np.zeros(n_bins)
-
-            for _, row in df.iterrows():
-                for i in range(n_bins):
-                    if bins[i] <= row["close"] < bins[i + 1]:
-                        volume_by_bin[i] += row.get("volume", 0)
-                        break
-
-            hvn_idx = int(np.argmax(volume_by_bin))
-            hvn_price = (bins[hvn_idx] + bins[hvn_idx + 1]) / 2
-            tolerance = (price_max - price_min) / n_bins
-
-            if abs(price - hvn_price) <= tolerance:
-                return {"signal": "buy" if price > hvn_price else "neutral",
-                        "confidence": 0.68,
-                        "reason": f"Price at high volume node ({hvn_price:.2f}) — strong support/resistance"}
-
-            if price > hvn_price:
-                return {"signal": "buy", "confidence": 0.65, "reason": f"Price above HVN {hvn_price:.2f} — support below"}
-            else:
-                return {"signal": "sell", "confidence": 0.60, "reason": f"Price below HVN {hvn_price:.2f} — resistance above"}
-        except Exception:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Volume profile calculation error"}
-
-    def _school_candlestick_patterns(self, df: pd.DataFrame) -> dict:
-        """Detect common candlestick patterns."""
-        if len(df) < 3:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Insufficient data"}
-
-        c = df.iloc[-1]
-        p = df.iloc[-2]
-        p2 = df.iloc[-3]
-
-        body = abs(c["close"] - c["open"])
-        upper_wick = c["high"] - max(c["open"], c["close"])
-        lower_wick = min(c["open"], c["close"]) - c["low"]
-        total_range = c["high"] - c["low"]
-
-        if total_range == 0:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Doji — indecision"}
-
-        # Doji
-        if body / total_range < 0.1:
-            return {"signal": "neutral", "confidence": 0.50, "reason": "Doji candle — indecision"}
-
-        # Morning star
-        if (p2["close"] < p2["open"]  # bearish
-                and abs(p["close"] - p["open"]) < abs(p2["close"] - p2["open"]) * 0.3  # small body
-                and c["close"] > c["open"]  # bullish
-                and c["close"] > (p2["open"] + p2["close"]) / 2):
-            return {"signal": "buy", "confidence": 0.80, "reason": "Morning star pattern"}
-
-        # Evening star
-        if (p2["close"] > p2["open"]
-                and abs(p["close"] - p["open"]) < abs(p2["close"] - p2["open"]) * 0.3
-                and c["close"] < c["open"]
-                and c["close"] < (p2["open"] + p2["close"]) / 2):
-            return {"signal": "sell", "confidence": 0.80, "reason": "Evening star pattern"}
-
-        # Three white soldiers
-        if (c["close"] > c["open"] > p["close"] > p["open"] > p2["close"] > p2["open"]):
-            return {"signal": "buy", "confidence": 0.75, "reason": "Three white soldiers"}
-
-        # Three black crows
-        if (c["close"] < c["open"] < p["close"] < p["open"] < p2["close"] < p2["open"]):
-            return {"signal": "sell", "confidence": 0.75, "reason": "Three black crows"}
-
-        # Hammer
-        if lower_wick > 2 * body and upper_wick < body * 0.5 and c["close"] > c["open"]:
-            return {"signal": "buy", "confidence": 0.68, "reason": "Hammer candle"}
-
-        # Inverted hammer / shooting star
-        if upper_wick > 2 * body and lower_wick < body * 0.5:
-            return {"signal": "sell", "confidence": 0.65, "reason": "Shooting star / inverted hammer"}
-
-        direction = "buy" if c["close"] > c["open"] else "sell"
-        return {"signal": direction, "confidence": 0.55, "reason": "Directional momentum candle"}
-
-    def _school_trend_following(self, indicators: dict, price: float) -> dict:
-        """Trend following based on EMA alignment."""
-        ema20 = indicators.get("ema_20", {}).get("value", price)
-        ema50 = indicators.get("ema_50", {}).get("value", price)
-        ema200 = indicators.get("ema_200", {}).get("value", price)
-
-        if price > ema20 > ema50 > ema200:
-            return {"signal": "buy", "confidence": 0.85, "reason": "Price above all MAs — strong uptrend"}
-        if price < ema20 < ema50 < ema200:
-            return {"signal": "sell", "confidence": 0.85, "reason": "Price below all MAs — strong downtrend"}
-        if price > ema20 > ema50:
-            return {"signal": "buy", "confidence": 0.70, "reason": "Price above EMA20 & EMA50 — uptrend"}
-        if price < ema20 < ema50:
-            return {"signal": "sell", "confidence": 0.70, "reason": "Price below EMA20 & EMA50 — downtrend"}
-        if price > ema20:
-            return {"signal": "buy", "confidence": 0.55, "reason": "Price above EMA20 — mild bullish bias"}
-        if price < ema20:
-            return {"signal": "sell", "confidence": 0.55, "reason": "Price below EMA20 — mild bearish bias"}
-
-        return {"signal": "neutral", "confidence": 0.50, "reason": "Price at moving averages — no clear trend"}
-
-    # ── Aggregate logic ───────────────────────────────────────────────────────
-
-    def _calc_confluence(self, schools: dict) -> float:
-        """Weighted average of buy confidence - sell confidence."""
-        buy_conf = 0.0
-        sell_conf = 0.0
-        count = 0
-        for s in schools.values():
-            sig = s.get("signal", "neutral")
-            conf = s.get("confidence", 0.5)
-            count += 1
-            if sig == "buy":
-                buy_conf += conf
-            elif sig == "sell":
-                sell_conf += conf
-
-        if count == 0:
-            return 0.5
-
-        net = (buy_conf - sell_conf) / count
-        # Map [-1, 1] to [0, 1]
-        return round(0.5 + net * 0.5, 4)
-
-    def _overall_signal(self, confluence_score: float, schools: dict) -> str:
-        if confluence_score >= 0.65:
-            return "buy"
-        if confluence_score <= 0.35:
-            return "sell"
-        return "wait"
+    # ── Support / Resistance ──────────────────────────────────────────────────
+
+    def _calc_sr(self, df: pd.DataFrame) -> tuple:
+        recent = df.tail(100)
+        supports = sorted(recent["low"].nsmallest(3).tolist())
+        resistances = sorted(recent["high"].nlargest(3).tolist())
+        return [round(x, 5) for x in supports], [round(x, 5) for x in resistances]
+
+    # ── Trade levels ──────────────────────────────────────────────────────────
+
+    def _calc_levels(self, df, price, signal, indicators):
+        atr = indicators.get("atr", {}).get("value", price * 0.005)
+        if not atr:
+            atr = price * 0.005
+        if signal == "buy":
+            return (round(price, 5), round(price - 1.5 * atr, 5),
+                    round(price + 1.5 * atr, 5), round(price + 3 * atr, 5), round(price + 5 * atr, 5))
+        elif signal == "sell":
+            return (round(price, 5), round(price + 1.5 * atr, 5),
+                    round(price - 1.5 * atr, 5), round(price - 3 * atr, 5), round(price - 5 * atr, 5))
+        else:
+            return (round(price, 5), round(price - 1.5 * atr, 5),
+                    round(price + 1.5 * atr, 5), round(price + 3 * atr, 5), round(price + 5 * atr, 5))
+
+    # ── Trend ─────────────────────────────────────────────────────────────────
 
     def _detect_trend(self, indicators: dict) -> str:
-        buy_count = sum(
-            1 for k in ("ema_20", "ema_50", "ema_200")
-            if indicators.get(k, {}).get("signal") == "buy"
-        )
-        if buy_count >= 2:
+        buy = sum(1 for k in ("ema_20", "ema_50", "ema_200") if indicators.get(k, {}).get("signal") == "buy")
+        if buy >= 2:
             return "bullish"
-        if buy_count <= 1:
-            sell_count = sum(
-                1 for k in ("ema_20", "ema_50", "ema_200")
-                if indicators.get(k, {}).get("signal") == "sell"
-            )
-            if sell_count >= 2:
-                return "bearish"
+        sell = sum(1 for k in ("ema_20", "ema_50", "ema_200") if indicators.get(k, {}).get("signal") == "sell")
+        if sell >= 2:
+            return "bearish"
         return "neutral"
 
-    def _calc_levels(
-        self, df: pd.DataFrame, price: float, signal: str, indicators: dict
-    ) -> tuple:
-        atr = indicators.get("atr", {}).get("value", price * 0.005)
-        if atr == 0:
-            atr = price * 0.005
-
-        if signal == "buy":
-            entry = round(price, 5)
-            sl = round(price - 1.5 * atr, 5)
-            tp1 = round(price + 1.5 * atr, 5)
-            tp2 = round(price + 3.0 * atr, 5)
-            tp3 = round(price + 5.0 * atr, 5)
-        elif signal == "sell":
-            entry = round(price, 5)
-            sl = round(price + 1.5 * atr, 5)
-            tp1 = round(price - 1.5 * atr, 5)
-            tp2 = round(price - 3.0 * atr, 5)
-            tp3 = round(price - 5.0 * atr, 5)
-        else:
-            entry = round(price, 5)
-            sl = round(price - 1.5 * atr, 5)
-            tp1 = round(price + 1.5 * atr, 5)
-            tp2 = round(price + 3.0 * atr, 5)
-            tp3 = round(price + 5.0 * atr, 5)
-
-        return entry, sl, tp1, tp2, tp3
-
-    def _calc_sr_levels(self, df: pd.DataFrame) -> tuple[list, list]:
-        recent = df.tail(100)
-        lows = sorted(recent["low"].nsmallest(3).tolist())
-        highs = sorted(recent["high"].nlargest(3).tolist())
-        return [round(x, 5) for x in lows], [round(x, 5) for x in highs]
+    # ── Killzone ──────────────────────────────────────────────────────────────
 
     def _get_killzone(self) -> Optional[str]:
-        """Return current forex killzone based on UTC hour."""
         hour = datetime.now(timezone.utc).hour
         if 2 <= hour < 5:
             return "asian"
@@ -666,28 +370,21 @@ class TechnicalAnalysisService:
             return "new_york_open"
         return None
 
+    # ── Insufficient data ─────────────────────────────────────────────────────
+
     def _insufficient_data(self, symbol: str, timeframe: str) -> dict:
         return {
-            "symbol": symbol,
-            "timeframe": timeframe,
+            "symbol": symbol, "timeframe": timeframe,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "price": 0.0,
-            "trend": "neutral",
-            "confluence_score": 0.5,
-            "signal": "wait",
-            "entry": 0.0,
-            "stop_loss": 0.0,
-            "take_profit_1": 0.0,
-            "take_profit_2": 0.0,
-            "take_profit_3": 0.0,
-            "indicators": {},
-            "schools": {},
-            "support_levels": [],
-            "resistance_levels": [],
-            "killzone": None,
+            "price": 0.0, "trend": "neutral", "confluence_score": 0.0,
+            "signal": "wait", "should_trade": False, "rejection_reasons": ["INSUFFICIENT_DATA"],
+            "entry": 0.0, "stop_loss": 0.0,
+            "take_profit_1": 0.0, "take_profit_2": 0.0, "take_profit_3": 0.0,
+            "buy_votes": 0, "sell_votes": 0, "neutral_votes": 0, "total_schools": 0,
+            "top_factors": [], "indicators": {}, "schools": {},
+            "support_levels": [], "resistance_levels": [], "killzone": None,
             "error": "Insufficient candle data",
         }
 
 
-# Module-level singleton
 ta_service = TechnicalAnalysisService()
