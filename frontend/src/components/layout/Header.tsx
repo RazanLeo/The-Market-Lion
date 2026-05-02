@@ -8,31 +8,13 @@ import { SYMBOLS } from '@/lib/mockData'
 import clsx from 'clsx'
 
 const LionLogo = () => (
-  <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="42" fill="url(#h-mane)" opacity="0.9" />
-    <circle cx="50" cy="50" r="36" fill="#0A0A0A" />
-    {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
-      <ellipse key={i} cx={50 + 38 * Math.cos((angle * Math.PI) / 180)} cy={50 + 38 * Math.sin((angle * Math.PI) / 180)}
-        rx="8" ry="11" fill="url(#h-mane)"
-        transform={`rotate(${angle}, ${50 + 38 * Math.cos((angle * Math.PI) / 180)}, ${50 + 38 * Math.sin((angle * Math.PI) / 180)})`} />
-    ))}
-    <circle cx="50" cy="50" r="30" fill="url(#h-face)" />
-    <ellipse cx="40" cy="44" rx="5" ry="6" fill="#0A0A0A" />
-    <ellipse cx="60" cy="44" rx="5" ry="6" fill="#0A0A0A" />
-    <ellipse cx="40" cy="44" rx="2.5" ry="3" fill="#C9A227" />
-    <ellipse cx="60" cy="44" rx="2.5" ry="3" fill="#C9A227" />
-    <ellipse cx="50" cy="55" rx="4" ry="3" fill="#8B4513" />
-    <defs>
-      <linearGradient id="h-mane" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#E8C547" />
-        <stop offset="100%" stopColor="#A07B0A" />
-      </linearGradient>
-      <linearGradient id="h-face" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#D4922A" />
-        <stop offset="100%" stopColor="#B8721A" />
-      </linearGradient>
-    </defs>
-  </svg>
+  <img
+    src="/logo.jpg"
+    alt="أسد السوق"
+    width={36}
+    height={36}
+    style={{ borderRadius: '50%', objectFit: 'cover', width: 36, height: 36 }}
+  />
 )
 
 export default function Header() {

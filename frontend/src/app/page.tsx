@@ -3,53 +3,17 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-const LionLogo = ({ size = 80 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    {/* Mane */}
-    <circle cx="50" cy="50" r="42" fill="url(#mane-gradient)" opacity="0.9" />
-    <circle cx="50" cy="50" r="36" fill="#1A1A1A" />
-    {/* Mane spikes */}
-    {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((angle, i) => (
-      <ellipse
-        key={i}
-        cx={50 + 38 * Math.cos((angle * Math.PI) / 180)}
-        cy={50 + 38 * Math.sin((angle * Math.PI) / 180)}
-        rx="7"
-        ry="10"
-        fill="url(#mane-gradient)"
-        transform={`rotate(${angle}, ${50 + 38 * Math.cos((angle * Math.PI) / 180)}, ${50 + 38 * Math.sin((angle * Math.PI) / 180)})`}
-        opacity="0.9"
-      />
-    ))}
-    {/* Face */}
-    <circle cx="50" cy="50" r="30" fill="url(#face-gradient)" />
-    {/* Eyes */}
-    <ellipse cx="40" cy="44" rx="5" ry="6" fill="#0A0A0A" />
-    <ellipse cx="60" cy="44" rx="5" ry="6" fill="#0A0A0A" />
-    <ellipse cx="40" cy="44" rx="2.5" ry="3" fill="#C9A227" />
-    <ellipse cx="60" cy="44" rx="2.5" ry="3" fill="#C9A227" />
-    <circle cx="40" cy="43" r="1" fill="#fff" opacity="0.6" />
-    <circle cx="60" cy="43" r="1" fill="#fff" opacity="0.6" />
-    {/* Nose */}
-    <ellipse cx="50" cy="55" rx="4" ry="3" fill="#8B4513" />
-    <path d="M50 58 L45 62 M50 58 L55 62" stroke="#8B4513" strokeWidth="1.5" strokeLinecap="round" />
-    {/* Mouth */}
-    <path d="M42 65 Q50 70 58 65" stroke="#8B4513" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-    {/* Eyebrows */}
-    <path d="M35 39 Q40 36 45 39" stroke="#8B4513" strokeWidth="2" fill="none" strokeLinecap="round" />
-    <path d="M55 39 Q60 36 65 39" stroke="#8B4513" strokeWidth="2" fill="none" strokeLinecap="round" />
-    <defs>
-      <linearGradient id="mane-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#E8C547" />
-        <stop offset="50%" stopColor="#C9A227" />
-        <stop offset="100%" stopColor="#A07B0A" />
-      </linearGradient>
-      <linearGradient id="face-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#D4922A" />
-        <stop offset="100%" stopColor="#B8721A" />
-      </linearGradient>
-    </defs>
-  </svg>
+const LionLogo = ({ size = 80, hero = false }: { size?: number; hero?: boolean }) => (
+  <img
+    src="/logo.jpg"
+    alt="أسد السوق"
+    width={hero ? undefined : size}
+    height={hero ? undefined : size}
+    style={hero
+      ? { maxWidth: 340, width: '100%', height: 'auto', borderRadius: 16, objectFit: 'contain' }
+      : { borderRadius: '50%', objectFit: 'cover', width: size, height: size }
+    }
+  />
 )
 
 const features = [
@@ -161,10 +125,7 @@ export default function LandingPage() {
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
           {/* Lion Logo */}
           <div className="flex justify-center mb-8 animate-float">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full gold-glow-lg scale-110" />
-              <LionLogo size={140} />
-            </div>
+            <LionLogo hero />
           </div>
 
           {/* Title */}

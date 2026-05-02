@@ -18,38 +18,13 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>
 
 const LionLogo = () => (
-  <svg width="64" height="64" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="42" fill="url(#mane-g)" opacity="0.9" />
-    <circle cx="50" cy="50" r="36" fill="#0A0A0A" />
-    {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((angle, i) => (
-      <ellipse key={i} cx={50 + 38 * Math.cos((angle * Math.PI) / 180)} cy={50 + 38 * Math.sin((angle * Math.PI) / 180)}
-        rx="7" ry="10" fill="url(#mane-g)"
-        transform={`rotate(${angle}, ${50 + 38 * Math.cos((angle * Math.PI) / 180)}, ${50 + 38 * Math.sin((angle * Math.PI) / 180)})`} />
-    ))}
-    <circle cx="50" cy="50" r="30" fill="url(#face-g)" />
-    <ellipse cx="40" cy="44" rx="5" ry="6" fill="#0A0A0A" />
-    <ellipse cx="60" cy="44" rx="5" ry="6" fill="#0A0A0A" />
-    <ellipse cx="40" cy="44" rx="2.5" ry="3" fill="#C9A227" />
-    <ellipse cx="60" cy="44" rx="2.5" ry="3" fill="#C9A227" />
-    <circle cx="40" cy="43" r="1" fill="#fff" opacity="0.6" />
-    <circle cx="60" cy="43" r="1" fill="#fff" opacity="0.6" />
-    <ellipse cx="50" cy="55" rx="4" ry="3" fill="#8B4513" />
-    <path d="M50 58 L45 62 M50 58 L55 62" stroke="#8B4513" strokeWidth="1.5" strokeLinecap="round" />
-    <path d="M42 65 Q50 70 58 65" stroke="#8B4513" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-    <path d="M35 39 Q40 36 45 39" stroke="#8B4513" strokeWidth="2" fill="none" strokeLinecap="round" />
-    <path d="M55 39 Q60 36 65 39" stroke="#8B4513" strokeWidth="2" fill="none" strokeLinecap="round" />
-    <defs>
-      <linearGradient id="mane-g" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#E8C547" />
-        <stop offset="50%" stopColor="#C9A227" />
-        <stop offset="100%" stopColor="#A07B0A" />
-      </linearGradient>
-      <linearGradient id="face-g" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#D4922A" />
-        <stop offset="100%" stopColor="#B8721A" />
-      </linearGradient>
-    </defs>
-  </svg>
+  <img
+    src="/logo.jpg"
+    alt="أسد السوق"
+    width={64}
+    height={64}
+    style={{ borderRadius: '50%', objectFit: 'cover', width: 64, height: 64 }}
+  />
 )
 
 export default function LoginPage() {
