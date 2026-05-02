@@ -1,0 +1,66 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'auth_service'
+    static_configs:
+      - targets: ['auth_service:8001']
+    metrics_path: '/metrics'
+
+  - job_name: 'backtesting_service'
+    static_configs:
+      - targets: ['backtesting_service:8002']
+    metrics_path: '/metrics'
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  - job_name: 'ai_ml_service'
+    static_configs:
+      - targets: ['ai_ml_service:8008']
+    metrics_path: '/metrics'
+
+  - job_name: 'patterns_service'
+    static_configs:
+      - targets: ['patterns_service:8009']
+    metrics_path: '/metrics'
+
+  - job_name: 'price_action_service'
+    static_configs:
+      - targets: ['price_action_service:8010']
+    metrics_path: '/metrics'
+
+  - job_name: 'user_service'
+    static_configs:
+      - targets: ['user_service:8011']
+    metrics_path: '/metrics'
+
+  - job_name: 'whale_tracker_service'
+    static_configs:
+      - targets: ['whale_tracker_service:8012']
+    metrics_path: '/metrics'
+
+  - job_name: 'risk_manager_service'
+    static_configs:
+      - targets: ['risk_manager_service:8013']
+    metrics_path: '/metrics'
+
+  - job_name: 'notification_service'
+    static_configs:
+      - targets: ['notification_service:8014']
+    metrics_path: '/metrics'
