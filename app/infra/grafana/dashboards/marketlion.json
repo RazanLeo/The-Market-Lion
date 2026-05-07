@@ -1,0 +1,15 @@
+{
+  "title": "The Market Lion — Overview",
+  "panels": [
+    { "title": "Active users", "type": "stat", "targets": [{ "expr": "marketlion_active_users" }] },
+    { "title": "Confluence updates / min", "type": "graph", "targets": [{ "expr": "rate(marketlion_confluence_updates_total[1m])" }] },
+    { "title": "API p95 latency (s)", "type": "graph", "targets": [{ "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))" }] },
+    { "title": "Trades opened/closed", "type": "graph", "targets": [
+      { "expr": "rate(marketlion_trades_opened_total[5m])" },
+      { "expr": "rate(marketlion_trades_closed_total[5m])" }
+    ]},
+    { "title": "Win rate (rolling 50)", "type": "stat", "targets": [{ "expr": "marketlion_win_rate_50" }] },
+    { "title": "Error rate", "type": "graph", "targets": [{ "expr": "rate(http_requests_total{status=~'5..'}[5m])" }] }
+  ],
+  "schemaVersion": 38
+}

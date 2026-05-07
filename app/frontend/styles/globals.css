@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --gold-primary: #C9A227;
+  --gold-light: #E8C547;
+  --gold-dark: #8B6F1F;
+  --bg-primary: #0A0A0A;
+  --bg-secondary: #1A1A1A;
+  --bull-green: #0E7A2C;
+  --bear-red: #B0140C;
+  --text-primary: #F5F5F5;
+  --text-muted: #B8B8B8;
+  --nav-blue: #1E3A8A;
+  --warn-yellow: #F5C518;
+  --alert-orange: #E07B00;
+}
+
+html, body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100%;
+  font-feature-settings: 'cv11','ss01','ss02';
+}
+
+[dir="rtl"] {
+  font-family: var(--font-tajawal), system-ui, sans-serif;
+}
+[dir="ltr"] {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(201,162,39,0.35); border-radius: 4px; }
+
+.glow-on-hover { transition: box-shadow .2s ease; }
+.glow-on-hover:hover { box-shadow: var(--tw-shadow), 0 0 12px rgba(201,162,39,0.35); }
+
+.cell-buy { background-color: rgba(14,122,44,0.15); color: var(--bull-green); }
+.cell-sell { background-color: rgba(176,20,12,0.15); color: var(--bear-red); }
+.cell-neutral { background-color: rgba(184,184,184,0.06); color: var(--text-muted); }

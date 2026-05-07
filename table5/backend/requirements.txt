@@ -1,0 +1,17 @@
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+pydantic==2.9.0
+sqlalchemy==2.0.35
+asyncpg==0.30.0
+alembic==1.13.0
+celery==5.4.0
+redis==5.1.0
+numpy>=1.26,<2.2
+pandas==2.2.0
+TA-Lib==0.4.32
+pandas-ta==0.3.14b0
+numba==0.60.0
+websockets==13.1
+python-jose[cryptography]==3.3.0
+yfinance==0.2.40
+httpx==0.27.0

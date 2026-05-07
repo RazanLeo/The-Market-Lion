@@ -1,0 +1,16 @@
+rules:
+  - id: no-eval
+    pattern: eval(...)
+    message: "Avoid using eval() — security risk"
+    languages: [python, javascript, typescript]
+    severity: ERROR
+  - id: no-shell-true
+    pattern: subprocess.run(..., shell=True)
+    message: "Avoid shell=True in subprocess calls — command injection risk"
+    languages: [python]
+    severity: ERROR
+  - id: secret-in-url
+    pattern-regex: "(api_key|apikey|password|secret)=[A-Za-z0-9]{10,}"
+    message: "Possible secret leaked in URL"
+    languages: [python, javascript, typescript]
+    severity: WARNING

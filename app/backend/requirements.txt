@@ -1,0 +1,75 @@
+# Web framework
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+gunicorn==23.0.0
+pydantic==2.9.2
+pydantic-settings==2.6.1
+python-multipart==0.0.17
+
+# Auth
+python-jose[cryptography]==3.3.0
+argon2-cffi==23.1.0
+pyotp==2.9.0
+passlib[bcrypt]==1.7.4
+
+# DB
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+psycopg2-binary==2.9.10
+pgvector==0.3.6
+
+# Cache + Queue
+redis==5.2.0
+celery==5.4.0
+flower==2.0.1
+
+# HTTP client
+httpx==0.27.2
+aiohttp==3.10.10
+websockets==13.1
+tenacity==9.0.0
+
+# Market data + analysis
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.14.1
+pandas-ta==0.3.14b0
+TA-Lib==0.5.1
+numba==0.60.0
+yfinance==0.2.50
+
+# NLP
+transformers==4.46.2
+torch==2.5.1
+sentence-transformers==3.3.0
+
+# OpenAI / Anthropic
+openai==1.55.0
+anthropic==0.40.0
+
+# Storage
+boto3==1.35.66
+
+# Email
+resend==2.5.1
+
+# Stripe / PayPal / Twilio
+stripe==11.2.0
+paypalrestsdk==1.13.3
+twilio==9.3.7
+
+# Observability
+structlog==24.4.0
+sentry-sdk[fastapi]==2.18.0
+prometheus-client==0.21.0
+opentelemetry-api==1.28.2
+opentelemetry-sdk==1.28.2
+opentelemetry-instrumentation-fastapi==0.49b2
+
+# Dev
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+ruff==0.7.4
+mypy==1.13.0

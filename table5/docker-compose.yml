@@ -1,0 +1,46 @@
+# 🦁 Table 5 — full stack: Backend + Frontend + PostgreSQL/Timescale
+version: '3.9'
+
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: market_lion
+      POSTGRES_USER: lion
+      POSTGRES_PASSWORD: lion_pwd
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      MARKET_DATA_SOURCE: ${MARKET_DATA_SOURCE:-mock}
+      CAPITAL_API_URL: ${CAPITAL_API_URL:-}
+      CAPITAL_API_KEY: ${CAPITAL_API_KEY:-}
+      CAPITAL_LOGIN: ${CAPITAL_LOGIN:-}
+      CAPITAL_PASSWORD: ${CAPITAL_PASSWORD:-}
+      DATABASE_URL: postgresql://lion:lion_pwd@db:5432/market_lion
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      NEXT_PUBLIC_TABLE5_API: http://backend:8000
+      NEXT_PUBLIC_TABLE5_WS: ws://backend:8000
+    ports:
+      - "3001:3001"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

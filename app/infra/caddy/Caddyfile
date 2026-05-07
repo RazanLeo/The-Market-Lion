@@ -1,0 +1,52 @@
+# The Market Lion — Caddyfile
+# Auto-TLS via Let's Encrypt. Replace marketlion.ai with your domain.
+
+{
+    email admin@marketlion.ai
+    # admin localhost:2019
+}
+
+# Production domain (after DNS pointing)
+marketlion.ai, www.marketlion.ai {
+    encode gzip zstd
+
+    # Frontend (Next.js)
+    handle /api/* {
+        reverse_proxy backend:8000
+    }
+    handle /ws/* {
+        reverse_proxy backend:8000
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    header {
+        # Security
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        # CSP — relaxed for TradingView; tighten in later sprint
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://s3.tradingview.com https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' wss: https:; frame-src https://s.tradingview.com;"
+        # Hide server header
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 50mb
+            roll_keep 10
+        }
+        format json
+    }
+}
+
+# Direct IP fallback (during early bring-up)
+:80, :443 {
+    handle /api/* { reverse_proxy backend:8000 }
+    handle /ws/* { reverse_proxy backend:8000 }
+    handle { reverse_proxy frontend:3000 }
+    tls internal
+}

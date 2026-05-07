@@ -1,0 +1,48 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# node / next
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+.pnpm-store/
+.npm/
+
+# logs / db
+*.log
+*.sqlite3
+postgres-data/
+redis-data/
+spaces-data/
+loki-data/
+grafana-data/
+
+# system
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# editor
+.vscode/
+.idea/
+
+# docker
+docker-compose.override.yml
